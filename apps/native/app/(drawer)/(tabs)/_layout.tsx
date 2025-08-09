@@ -25,6 +25,7 @@ export default function TabLayout() {
         },
       }}
     >
+      {/* Primary tabs only: Home, Search, Library */}
       <Tabs.Screen
         name="index"
         options={{
@@ -33,14 +34,26 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="search"
         options={{
-          title: "Explore",
-          tabBarIcon: ({ color }) => (
-            <TabBarIcon name="compass" color={color} />
-          ),
+          title: "Search",
+          tabBarIcon: ({ color }) => <TabBarIcon name="search" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="library"
+        options={{
+          title: "Library",
+          tabBarIcon: ({ color }) => <TabBarIcon name="music" color={color} />,
+        }}
+      />
+
+      {/* Hide detail routes from the tab bar */}
+      <Tabs.Screen name="artist/[artistId]" options={{ href: null }} />
+      <Tabs.Screen name="album/[albumId]" options={{ href: null }} />
+      <Tabs.Screen name="playlist/[playlistId]" options={{ href: null }} />
+      <Tabs.Screen name="song/[songId]" options={{ href: null }} />
+      <Tabs.Screen name="playlists" options={{ href: null }} />
     </Tabs>
   );
 }

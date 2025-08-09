@@ -8,10 +8,19 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "../global.css";
-import React, { useRef } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { usePathname } from "expo-router";
+import React, { useEffect } from "react";
 import { Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MiniPlayer } from "@/components/mini-player";
+import { PlayerSheet } from "@/components/player-sheet";
+import { PlayerProvider } from "@/contexts/player";
+import { PlayerUIProvider } from "@/contexts/player-ui";
+import { SubsonicProvider } from "@/contexts/subsonic";
 import { setAndroidNavigationBar } from "@/lib/android-navigation-bar";
 import { NAV_THEME } from "@/lib/constants";
+import { getQueryClient } from "@/lib/query";
 import { useColorScheme } from "@/lib/use-color-scheme";
 
 const LIGHT_THEME: Theme = {
@@ -28,43 +37,39 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
-  const hasMounted = useRef(false);
   const { colorScheme, isDarkColorScheme } = useColorScheme();
-  const [isColorSchemeLoaded, setIsColorSchemeLoaded] = React.useState(false);
+  // Render immediately; set nav bar in an effect
+  const pathname = usePathname();
+  const insets = useSafeAreaInsets();
 
-  useIsomorphicLayoutEffect(() => {
-    if (hasMounted.current) {
-      return;
-    }
-
-    if (Platform.OS === "web") {
-      document.documentElement.classList.add("bg-background");
-    }
+  useEffect(() => {
     setAndroidNavigationBar(colorScheme);
-    setIsColorSchemeLoaded(true);
-    hasMounted.current = true;
-  }, []);
+  }, [colorScheme]);
 
-  if (!isColorSchemeLoaded) {
-    return null;
-  }
   return (
-    <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
-      <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <Stack>
-          <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="modal"
-            options={{ title: "Modal", presentation: "modal" }}
-          />
-        </Stack>
-      </GestureHandlerRootView>
-    </ThemeProvider>
+    <QueryClientProvider client={getQueryClient()}>
+      <SubsonicProvider>
+        <PlayerProvider>
+          <PlayerUIProvider>
+            <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
+              <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <Stack>
+                  <Stack.Screen
+                    name="(drawer)"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen name="modal" options={{ title: "Player" }} />
+                </Stack>
+                <MiniPlayer insetBottom={insets.bottom} />
+                <PlayerSheet />
+              </GestureHandlerRootView>
+            </ThemeProvider>
+          </PlayerUIProvider>
+        </PlayerProvider>
+      </SubsonicProvider>
+    </QueryClientProvider>
   );
 }
 
-const useIsomorphicLayoutEffect =
-  Platform.OS === "web" && typeof window === "undefined"
-    ? React.useEffect
-    : React.useLayoutEffect;
+const useIsomorphicLayoutEffect = React.useLayoutEffect;
