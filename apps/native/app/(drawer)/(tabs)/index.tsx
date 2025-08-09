@@ -19,16 +19,19 @@ export default function TabOne() {
   const newest = useQuery({
     enabled: !!client,
     queryKey: ["home", "newest"],
+    // biome-ignore lint/style/noNonNullAssertion: Query is guarded by `enabled`
     queryFn: () => client!.getAlbumList2({ type: "newest", size: 12 }),
   });
   const random = useQuery({
     enabled: !!client,
     queryKey: ["home", "random"],
+    // biome-ignore lint/style/noNonNullAssertion: Query is guarded by `enabled`
     queryFn: () => client!.getAlbumList2({ type: "random", size: 12 }),
   });
   const playlists = useQuery({
     enabled: !!client,
     queryKey: ["home", "playlists"],
+    // biome-ignore lint/style/noNonNullAssertion: Query is guarded by `enabled`
     queryFn: () => client!.getPlaylists(),
   });
 

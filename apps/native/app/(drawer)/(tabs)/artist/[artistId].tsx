@@ -10,6 +10,7 @@ export default function ArtistScreen() {
   const { data, isLoading, error } = useQuery({
     enabled: !!client && !!artistId,
     queryKey: ["artist", artistId],
+    // biome-ignore lint/style/noNonNullAssertion: Query is guarded by `enabled`
     queryFn: () => client!.getArtist({ id: String(artistId) }),
   });
   return (
@@ -32,6 +33,7 @@ export default function ArtistScreen() {
               <Text className="mb-2 text-muted-foreground">ID: {artistId}</Text>
               <Text className="mt-6 mb-2 text-foreground">Albums</Text>
               <View className="rounded-md border border-border">
+                {/* biome-ignore lint/suspicious/noExplicitAny: Response shape is server-defined */}
                 {((data as any)?.artist?.album ?? []).map((al: any) => (
                   <Link
                     key={al.id}

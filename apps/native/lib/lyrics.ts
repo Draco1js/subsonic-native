@@ -37,3 +37,29 @@ export async function fetchLyrics(params: {
   const json = (await res.json()) as LyricsRecord;
   return json ?? null;
 }
+
+export type SyncedLine = { timeMs: number; text: string };
+
+export function parseSyncedLyrics(lrc: string | null | undefined): SyncedLine[] {
+  if (!lrc) return [];
+  const lines = lrc.split(/\r?\n/);
+  const result: SyncedLine[] = [];
+  const timeRe = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+  for (const raw of lines) {
+    let match: RegExpExecArray | null;
+    const times: number[] = [];
+    timeRe.lastIndex = 0;
+    while ((match = timeRe.exec(raw))) {
+      const min = Number(match[1]);
+      const sec = Number(match[2]);
+      const ms = match[3] ? Number(match[3].padEnd(3, '0')) : 0;
+      times.push(min * 60000 + sec * 1000 + ms);
+    }
+    const text = raw.replace(timeRe, '').trim();
+    if (!text) continue;
+    for (const t of times) {
+      result.push({ timeMs: t, text });
+    }
+  }
+  return result.sort((a, b) => a.timeMs - b.timeMs);
+}

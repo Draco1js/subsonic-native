@@ -15,6 +15,7 @@ export default function AlbumScreen() {
   const { data, isLoading, error } = useQuery({
     enabled: !!client && !!albumId,
     queryKey: ["album", albumId],
+    // biome-ignore lint/style/noNonNullAssertion: Query is guarded by `enabled`
     queryFn: () => client!.getAlbum({ id: String(albumId) }),
   });
   return (
@@ -33,6 +34,7 @@ export default function AlbumScreen() {
           ) : (
             <>
               <View className="mb-4 flex-row items-center gap-4">
+                {/* biome-ignore lint/suspicious/noExplicitAny: Response shape is server-defined */}
                 <CoverArt
                   coverArtId={(data as any)?.album?.coverArt}
                   size={512}
@@ -43,6 +45,7 @@ export default function AlbumScreen() {
                     numberOfLines={2}
                     className="font-semibold text-foreground text-xl"
                   >
+                    {/* biome-ignore lint/suspicious/noExplicitAny: Response shape is server-defined */}
                     {(data as any)?.album?.name}
                   </Text>
                   <Text className="text-muted-foreground">ID: {albumId}</Text>
@@ -51,8 +54,10 @@ export default function AlbumScreen() {
               <View className="mb-4 flex-row justify-end">
                 <TouchableOpacity
                   onPress={async () => {
+                    /* biome-ignore lint/suspicious/noExplicitAny: Response shape is server-defined */
                     const songs = (data as any)?.album?.song ?? [];
-                    const tracks = await buildTracksFromSongs(client!, songs);
+                    if (!client) return;
+                    const tracks = await buildTracksFromSongs(client, songs);
                     await playTracks(tracks, 0);
                   }}
                   className="rounded-md bg-primary px-4 py-2"
@@ -60,6 +65,7 @@ export default function AlbumScreen() {
                   <Text className="text-primary-foreground">Play</Text>
                 </TouchableOpacity>
               </View>
+              {/* biome-ignore lint/suspicious/noExplicitAny: Response shape is server-defined */}
               <TrackList songs={(data as any)?.album?.song ?? []} />
             </>
           )}

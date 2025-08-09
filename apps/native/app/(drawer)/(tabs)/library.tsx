@@ -9,6 +9,7 @@ export default function LibraryScreen() {
   const { data, isLoading, error } = useQuery({
     enabled: !!client,
     queryKey: ["artists"],
+    // biome-ignore lint/style/noNonNullAssertion: Query is guarded by `enabled`
     queryFn: () => client!.getArtists(),
   });
 
@@ -29,6 +30,7 @@ export default function LibraryScreen() {
             <Text className="text-destructive">Failed to load artists</Text>
           ) : (
             <View className="mt-4">
+              {/* biome-ignore lint/suspicious/noExplicitAny: Response shape is server-defined */}
               {(data as any)?.artists?.index?.map((idx: any) => (
                 <View key={idx.name}>
                   <Text className="mt-4 mb-2 text-muted-foreground">

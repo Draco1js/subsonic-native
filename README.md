@@ -1,52 +1,53 @@
 # subsonic-native
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack.
+A modern, open source Subsonic client for React Native, designed to get a closer experience to streaming services such as Spotify...
 
 ## Features
 
-- **TypeScript** - For type safety and improved developer experience
-- **React Native** - Build mobile apps using React
-- **Expo** - Tools for React Native development
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **shadcn/ui** - Reusable UI components
-- **Biome** - Linting and formatting
-- **Husky** - Git hooks for code quality
-- **PWA** - Progressive Web App support
-- **Turborepo** - Optimized monorepo build system
+- 🎵 **Stream your music library** from any Subsonic-compatible server
+- 📱 **Sleek, mobile-first UI** with smooth transitions and animations
+- 🔍 **Browse by album, artist, playlist, or folder**
+- 📝 **Synchronized and plain lyrics display using lrclib**
+- ⏯️ **Full-featured player**: play, pause, skip, shuffle, repeat
+- 📦 **Offline support** (planned)
+- 🔒 **Secure authentication** with your Subsonic server
+
+## Screenshots
+
+*(Screenshots coming soon!)*
 
 ## Getting Started
 
-First, install the dependencies:
+- Download a stable version from the releases.
+- Run the app.
+- Set up your subsonic base url, and credentials.
+- Enjoy!
 
-```bash
-pnpm install
-```
+## Roadmap
 
+- [x] Basic playback controls
+- [x] Album/artist browsing
+- [x] Lyrics support
+- [ ] Offline caching
+- [ ] Playlist management
+- [ ] Liked Songs
+- [ ] Download manager
+- [ ] Background play and lock screen metadata
 
-Then, run the development server:
+## Contributing
 
-```bash
-pnpm dev
-```
+Contributions are welcome! Please open an issue or pull request for bug fixes, new features, or suggestions.
 
-Use the Expo Go app to run the mobile application.
+1. Fork the repo
+2. Create your feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -am 'Add new feature'`)
+4. Push to the branch (`git push origin feature/your-feature`)
+5. Open a pull request
 
+## License
 
+This project is licensed under the [GNU General Public License v3.0](./COPYING).
 
-## Project Structure
+---
 
-```
-subsonic-native/
-├── apps/
-│   ├── native/      # Mobile application (React Native, Expo)
-```
-
-## Available Scripts
-
-- `pnpm dev`: Start all applications in development mode
-- `pnpm build`: Build all applications
-- `pnpm dev:web`: Start only the web application
-- `pnpm check-types`: Check TypeScript types across all apps
-- `pnpm dev:native`: Start the React Native/Expo development server
-- `pnpm check`: Run Biome formatting and linting
-- `cd apps/web && pnpm generate-pwa-assets`: Generate PWA assets
+*subsonic-native is not affiliated with Subsonic or Spotify. All trademarks are property of their respective owners.*
