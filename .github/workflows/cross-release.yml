@@ -32,7 +32,7 @@ jobs:
           java-version: '17'
       - name: Prebuild Android (no install)
         working-directory: ${{ env.WORKING_DIR }}
-        run: npx --yes expo prebuild --platform android --non-interactive --no-install
+        run: CI=1 npx --yes expo prebuild --platform android --no-install
       - name: Build debug APK
         working-directory: ${{ env.WORKING_DIR }}/android
         run: ./gradlew assembleDebug | cat
