@@ -18,12 +18,10 @@ env:
   EXPO_NO_TELEMETRY: "1"
 
 jobs:
-  android-build:
-    name: Android APKs (debug + optional release)
+  android-build-and-publish:
+    name: Android APKs (build + publish release)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    outputs:
-      release_built: ${{ steps.set_outputs.outputs.release_built }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -78,12 +76,6 @@ jobs:
       - name: Build debug APK
         working-directory: ${{ env.WORKING_DIR }}/android
         run: ./gradlew assembleDebug | cat
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-debug-apk
-          path: ${{ env.WORKING_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 7
 
       # Optional signed release in the same job
       - name: Check signing secrets
@@ -129,19 +121,8 @@ jobs:
             ${{ env.WORKING_DIR }}/android/app/build/outputs/apk/release/*.apk
             ${{ env.WORKING_DIR }}/android/app/build/outputs/mapping/release/mapping.txt
           retention-days: 14
-      - name: Set job outputs
-        id: set_outputs
-        run: |
-          echo "release_built=${{ steps.check_signing.outputs.can_sign }}" >> "$GITHUB_OUTPUT"
 
-  publish-release:
-    name: Publish GitHub Release (attach APKs)
-    runs-on: ubuntu-latest
-    needs: [android-build]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      # Create GitHub Release and upload assets directly
       - name: Compute release metadata
         id: meta
         run: |
@@ -151,11 +132,6 @@ jobs:
           echo "short=$SHORT" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
-      - name: Download Android artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: android-debug-apk
-          path: ./dist
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -166,154 +142,49 @@ jobs:
           release_name: Subsonic Native v${{ steps.meta.outputs.version }} (code ${{ steps.meta.outputs.code }})
           draft: false
           prerelease: true
-      - name: Upload APK to Release
+      - name: Upload debug APK asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/app-debug.apk
+          asset_path: ${{ env.WORKING_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
           asset_name: subsonicnative-android-debug-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}-${{ steps.meta.outputs.short }}.apk
           asset_content_type: application/vnd.android.package-archive
-      - name: Download Android release artifact
-        if: ${{ needs.android-build.outputs.release_built == 'true' }}
-        uses: actions/download-artifact@v4
-        with:
-          name: android-release-apk
-          path: ./dist
       - name: Rename release artifacts
-        if: ${{ needs.android-build.outputs.release_built == 'true' }}
+        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
         run: |
           set -euo pipefail
-          APK_SRC=$(ls ./dist/*.apk | head -n1)
-          mv "$APK_SRC" "./dist/subsonicnative-android-release-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.apk"
-          if [ -f ./dist/mapping.txt ]; then mv ./dist/mapping.txt "./dist/mapping-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.txt"; fi
+          APK_SRC=$(ls ${{ env.WORKING_DIR }}/android/app/build/outputs/apk/release/*.apk | head -n1)
+          cp "$APK_SRC" "./subsonicnative-android-release-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.apk"
+          if [ -f ${{ env.WORKING_DIR }}/android/app/build/outputs/mapping/release/mapping.txt ]; then \
+            cp ${{ env.WORKING_DIR }}/android/app/build/outputs/mapping/release/mapping.txt "./mapping-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.txt"; \
+          fi
       - name: Upload release APK asset
-        if: ${{ needs.android-build.outputs.release_built == 'true' }}
+        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/subsonicnative-android-release-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.apk
+          asset_path: ./subsonicnative-android-release-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.apk
           asset_name: subsonicnative-android-release-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.apk
           asset_content_type: application/vnd.android.package-archive
       - name: Upload mapping.txt asset (optional)
-        if: ${{ needs.android-build.outputs.release_built == 'true' && hashFiles('./dist/mapping-v*') != '' }}
+        if: ${{ steps.check_signing.outputs.can_sign == 'true' && hashFiles('./mapping-v*') != '' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/mapping-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.txt
+          asset_path: ./mapping-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.txt
           asset_name: mapping-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.txt
           asset_content_type: text/plain
+
 
   # Optional: Signed release builds (requires secrets)
   # (Optional) Add a signed release job later when keystore secrets are ready.
 
-  android-apk-release:
-    name: Android APK (release, signed)
-    runs-on: ubuntu-latest
-    outputs:
-      built: ${{ steps.check_signing.outputs.can_sign }}
-    timeout-minutes: 40
-    steps:
-      - name: Check signing secrets
-        id: check_signing
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          missing=0
-          for v in ANDROID_KEYSTORE_BASE64 ANDROID_KEY_ALIAS ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
-            if [ -z "${!v}" ]; then echo "::warning::Missing $v"; missing=1; fi
-          done
-          if [ "$missing" -eq 0 ]; then echo "can_sign=true" >> "$GITHUB_OUTPUT"; else echo "can_sign=false" >> "$GITHUB_OUTPUT"; fi
-      - uses: actions/checkout@v4
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        with:
-          fetch-depth: 1
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - name: Enable Corepack (pnpm from package.json)
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        run: |
-          set -euo pipefail
-          corepack enable
-          PNPM_VERSION=$(node -p "require('./package.json').packageManager.split('@')[1]")
-          corepack prepare pnpm@${PNPM_VERSION} --activate
-          pnpm -v
-      - name: Cache pnpm store
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        id: pnpm-cache
-        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-      - uses: actions/cache@v4
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - name: Install deps (root)
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        run: pnpm install --frozen-lockfile
-      - name: Setup Java (JDK 17)
-        uses: actions/setup-java@v4
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        with:
-          distribution: temurin
-          java-version: "17"
-      - name: Prebuild Android (no install)
-        working-directory: ${{ env.WORKING_DIR }}
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        run: CI=1 npx --yes expo prebuild --platform android --no-install
-      - name: Setup Gradle build cache
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        uses: gradle/gradle-build-action@v2
-      - name: Optimize Gradle settings
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        working-directory: ${{ env.WORKING_DIR }}/android
-        run: |
-          {
-            echo 'org.gradle.caching=true'
-            echo 'org.gradle.parallel=true'
-            echo 'org.gradle.daemon=false'
-          } >> gradle.properties
-      - name: Decode signing keystore
-        working-directory: ${{ env.WORKING_DIR }}
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/ci-upload-keystore.jks
-          ls -lh android/app/ci-upload-keystore.jks
-      - name: Build signed release APK
-        working-directory: ${{ env.WORKING_DIR }}/android
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        env:
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=${{ env.WORKING_DIR }}/android/app/ci-upload-keystore.jks \
-            -Pandroid.injected.signing.store.password=$ANDROID_KEYSTORE_PASSWORD \
-            -Pandroid.injected.signing.key.alias=$ANDROID_KEY_ALIAS \
-            -Pandroid.injected.signing.key.password=$ANDROID_KEY_PASSWORD | cat
-      - name: Upload release APK artifact(s)
-        uses: actions/upload-artifact@v4
-        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
-        with:
-          name: android-release-apk
-          path: |
-            ${{ env.WORKING_DIR }}/android/app/build/outputs/apk/release/*.apk
-            ${{ env.WORKING_DIR }}/android/app/build/outputs/mapping/release/mapping.txt
-          retention-days: 14
+  
 
   
