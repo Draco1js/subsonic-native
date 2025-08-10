@@ -57,6 +57,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
       - name: Restore Expo prebuild cache (android)
         id: prebuild-cache
         uses: actions/cache@v4
@@ -67,8 +69,8 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
         if: ${{ steps.prebuild-cache.outputs.cache-hit != 'true' }}
         run: CI=1 npx --yes expo prebuild --platform android --no-install
-      - name: Setup Gradle build cache
-        uses: gradle/gradle-build-action@v3
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
       - name: Optimize Gradle settings
         working-directory: ${{ env.WORKING_DIR }}/android
         run: |
@@ -90,7 +92,7 @@ jobs:
         run: grep -n "bundleInDebug" ${{ env.WORKING_DIR }}/android/app/build.gradle | cat
       - name: Build debug APK
         working-directory: ${{ env.WORKING_DIR }}/android
-        run: ./gradlew assembleDebug | cat
+        run: ./gradlew --no-daemon --stacktrace assembleDebug
       - name: Inspect debug build outputs
         run: |
           echo "== Debug outputs =="
@@ -140,11 +142,11 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          ./gradlew assembleRelease \
+          ./gradlew --no-daemon --stacktrace assembleRelease \
             -Pandroid.injected.signing.store.file=${{ env.WORKING_DIR }}/android/app/ci-upload-keystore.jks \
             -Pandroid.injected.signing.store.password=$ANDROID_KEYSTORE_PASSWORD \
             -Pandroid.injected.signing.key.alias=$ANDROID_KEY_ALIAS \
-            -Pandroid.injected.signing.key.password=$ANDROID_KEY_PASSWORD | cat
+            -Pandroid.injected.signing.key.password=$ANDROID_KEY_PASSWORD
       - name: Upload release APK artifact(s)
         if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
         uses: actions/upload-artifact@v4
