@@ -83,10 +83,10 @@ jobs:
           path: ${{ env.WORKING_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
 
-  create-release:
-    name: GitHub Release (attach APK)
+  publish-release:
+    name: Publish GitHub Release (attach APKs)
     runs-on: ubuntu-latest
-    needs: [android-apk]
+    needs: [android-apk, android-apk-release]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -124,6 +124,39 @@ jobs:
           asset_path: ./dist/app-debug.apk
           asset_name: subsonicnative-android-debug-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}-${{ steps.meta.outputs.short }}.apk
           asset_content_type: application/vnd.android.package-archive
+      - name: Download Android release artifact
+        if: ${{ needs.android-apk-release.outputs.built == 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: android-release-apk
+          path: ./dist
+      - name: Rename release artifacts
+        if: ${{ needs.android-apk-release.outputs.built == 'true' }}
+        run: |
+          set -euo pipefail
+          APK_SRC=$(ls ./dist/*.apk | head -n1)
+          mv "$APK_SRC" "./dist/subsonicnative-android-release-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.apk"
+          if [ -f ./dist/mapping.txt ]; then mv ./dist/mapping.txt "./dist/mapping-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.txt"; fi
+      - name: Upload release APK asset
+        if: ${{ needs.android-apk-release.outputs.built == 'true' }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/subsonicnative-android-release-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.apk
+          asset_name: subsonicnative-android-release-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.apk
+          asset_content_type: application/vnd.android.package-archive
+      - name: Upload mapping.txt asset (optional)
+        if: ${{ needs.android-apk-release.outputs.built == 'true' && hashFiles('./dist/mapping-v*') != '' }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/mapping-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.txt
+          asset_name: mapping-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.txt
+          asset_content_type: text/plain
 
   # Optional: Signed release builds (requires secrets)
   # (Optional) Add a signed release job later when keystore secrets are ready.
@@ -232,41 +265,4 @@ jobs:
             ${{ env.WORKING_DIR }}/android/app/build/outputs/mapping/release/mapping.txt
           retention-days: 14
 
-  attach-release-apk:
-    name: Attach signed release APK to GitHub Release
-    runs-on: ubuntu-latest
-    needs: [create-release, android-apk-release]
-    if: ${{ !cancelled() && needs.android-apk-release.outputs.built == 'true' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: Compute release metadata
-        id: meta
-        run: |
-          SHORT=${GITHUB_SHA::7}
-          VERSION=$(jq -r '.expo.version' apps/native/app.json)
-          CODE=$(jq -r '.expo.android.versionCode // 0' apps/native/app.json)
-          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "code=$CODE" >> "$GITHUB_OUTPUT"
-      - name: Download Android release artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: android-release-apk
-          path: ./dist
-      - name: Rename artifacts
-        run: |
-          set -euo pipefail
-          APK_SRC=$(ls ./dist/*.apk | head -n1)
-          mv "$APK_SRC" "./dist/subsonicnative-android-release-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.apk"
-          if [ -f ./dist/mapping.txt ]; then mv ./dist/mapping.txt "./dist/mapping-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.txt"; fi
-      - name: Upload Release APK to existing Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short }}
-          files: |
-            ./dist/subsonicnative-android-release-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.apk
-            ./dist/mapping-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.txt
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
