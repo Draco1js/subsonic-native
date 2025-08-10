@@ -42,7 +42,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.draco1js.subsonicnative",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": false
     }
   }
 }
