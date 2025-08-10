@@ -6,16 +6,16 @@ concurrency:
 
 on:
   push:
-    branches: [ main, ci-issues ]
+    branches: [main, ci-issues]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
   WORKING_DIR: apps/native
-  EXPO_NO_TELEMETRY: '1'
+  EXPO_NO_TELEMETRY: "1"
 
 jobs:
   android-apk:
@@ -30,8 +30,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
       - name: Enable Corepack (pnpm from package.json)
         run: |
           set -euo pipefail
@@ -39,13 +37,22 @@ jobs:
           PNPM_VERSION=$(node -p "require('./package.json').packageManager.split('@')[1]")
           corepack prepare pnpm@${PNPM_VERSION} --activate
           pnpm -v
+      - name: Cache pnpm store
+        id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
       - name: Install deps (root)
         run: pnpm install --frozen-lockfile
       - name: Setup Java (JDK 17)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
       - name: Prebuild Android (no install)
         working-directory: ${{ env.WORKING_DIR }}
         run: CI=1 npx --yes expo prebuild --platform android --no-install
@@ -150,8 +157,6 @@ jobs:
         if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
       - name: Enable Corepack (pnpm from package.json)
         if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
         run: |
@@ -160,6 +165,17 @@ jobs:
           PNPM_VERSION=$(node -p "require('./package.json').packageManager.split('@')[1]")
           corepack prepare pnpm@${PNPM_VERSION} --activate
           pnpm -v
+      - name: Cache pnpm store
+        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
+        id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+      - uses: actions/cache@v4
+        if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
       - name: Install deps (root)
         if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
         run: pnpm install --frozen-lockfile
@@ -168,7 +184,7 @@ jobs:
         if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
       - name: Prebuild Android (no install)
         working-directory: ${{ env.WORKING_DIR }}
         if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
@@ -254,5 +270,3 @@ jobs:
             ./dist/mapping-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
