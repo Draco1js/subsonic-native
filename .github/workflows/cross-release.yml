@@ -33,6 +33,13 @@ jobs:
       - name: Prebuild Android (no install)
         working-directory: ${{ env.WORKING_DIR }}
         run: CI=1 npx --yes expo prebuild --platform android --no-install
+      - name: Force bundle JS into Debug build
+        working-directory: ${{ env.WORKING_DIR }}/android/app
+        run: |
+          awk '/project.ext.react = \[/ { print; print "        bundleInDebug: true,"; next }1' build.gradle > build.gradle.tmp && mv build.gradle.tmp build.gradle
+          echo "Inserted bundleInDebug: true into android/app/build.gradle"
+      - name: Verify bundleInDebug flag
+        run: grep -n "bundleInDebug" ${{ env.WORKING_DIR }}/android/app/build.gradle | cat
       - name: Build debug APK
         working-directory: ${{ env.WORKING_DIR }}/android
         run: ./gradlew assembleDebug | cat
