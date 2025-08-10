@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "subsonic_native",
-    "slug": "subsonic_native",
+    "name": "Subsonic Native",
+    "slug": "subsonicnative",
     "version": "0.0.1",
-    "scheme": "subsonic_native",
+    "scheme": "subsonicnative",
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -31,7 +31,7 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.draco1js.subsonic_native",
+      "bundleIdentifier": "com.draco1js.subsonicnative",
       "infoPlist": {
         "UIBackgroundModes": ["audio"]
       }
@@ -41,7 +41,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.draco1js.subsonic_native",
+      "package": "com.draco1js.subsonicnative",
       "edgeToEdgeEnabled": true
     }
   }
