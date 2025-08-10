@@ -46,6 +46,10 @@ jobs:
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
+      - name: Prefetch deps (root)
+        run: pnpm fetch
+      - name: Install deps (root)
+        run: pnpm install --frozen-lockfile --prefer-offline
       - name: Install deps (root)
         run: pnpm install --frozen-lockfile
       - name: Setup Java (JDK 17)
@@ -53,29 +57,58 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: Restore Expo prebuild cache (android)
+        id: prebuild-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.WORKING_DIR }}/android
+          key: android-prebuild-${{ hashFiles('apps/native/app.json', 'apps/native/package.json', 'pnpm-lock.yaml') }}
       - name: Prebuild Android (no install)
         working-directory: ${{ env.WORKING_DIR }}
+        if: ${{ steps.prebuild-cache.outputs.cache-hit != 'true' }}
         run: CI=1 npx --yes expo prebuild --platform android --no-install
       - name: Setup Gradle build cache
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
       - name: Optimize Gradle settings
         working-directory: ${{ env.WORKING_DIR }}/android
         run: |
-          {
-            echo 'org.gradle.caching=true'
-            echo 'org.gradle.parallel=true'
-            echo 'org.gradle.daemon=false'
-          } >> gradle.properties
+          add_prop() { grep -q "^$1" gradle.properties 2>/dev/null || echo "$1" >> gradle.properties; }
+          add_prop 'org.gradle.caching=true'
+          add_prop 'org.gradle.parallel=true'
+          add_prop 'org.gradle.daemon=false'
+          # add_prop 'org.gradle.configuration-cache=true' # enable after verifying plugin compatibility
       - name: Force bundle JS into Debug build
         working-directory: ${{ env.WORKING_DIR }}/android/app
         run: |
-          awk '/project.ext.react = \[/ { print; print "        bundleInDebug: true,"; next }1' build.gradle > build.gradle.tmp && mv build.gradle.tmp build.gradle
-          echo "Inserted bundleInDebug: true into android/app/build.gradle"
+          if ! grep -q "bundleInDebug" build.gradle; then
+            awk '/project.ext.react = \[/ { print; print "        bundleInDebug: true,"; next }1' build.gradle > build.gradle.tmp && mv build.gradle.tmp build.gradle
+            echo "Inserted bundleInDebug: true into android/app/build.gradle"
+          else
+            echo "bundleInDebug already present; skipping insert"
+          fi
       - name: Verify bundleInDebug flag
         run: grep -n "bundleInDebug" ${{ env.WORKING_DIR }}/android/app/build.gradle | cat
       - name: Build debug APK
         working-directory: ${{ env.WORKING_DIR }}/android
         run: ./gradlew assembleDebug | cat
+      - name: Inspect debug build outputs
+        run: |
+          echo "== Debug outputs =="
+          ls -R ${{ env.WORKING_DIR }}/android/app/build/outputs || true
+      - name: Locate debug APK
+        id: debug_apk
+        run: |
+          set -euo pipefail
+          APK=$(find "${{ env.WORKING_DIR }}/android/app/build/outputs" -type f -path "*apk/*debug*/*" -name "*.apk" -print -quit)
+          if [ -z "$APK" ]; then
+            APK=$(find "${{ env.WORKING_DIR }}/android/app/build/outputs" -type f -path "*apk/debug/*" -name "*.apk" -print -quit)
+          fi
+          if [ -z "$APK" ]; then
+            echo "::error::No debug APK found under android/app/build/outputs";
+            ls -R ${{ env.WORKING_DIR }}/android/app/build/outputs || true
+            exit 1
+          fi
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
 
       # Optional signed release in the same job
       - name: Check signing secrets
@@ -148,14 +181,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.WORKING_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
+          asset_path: ${{ steps.debug_apk.outputs.path }}
           asset_name: subsonicnative-android-debug-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}-${{ steps.meta.outputs.short }}.apk
           asset_content_type: application/vnd.android.package-archive
       - name: Rename release artifacts
         if: ${{ steps.check_signing.outputs.can_sign == 'true' }}
         run: |
           set -euo pipefail
-          APK_SRC=$(ls ${{ env.WORKING_DIR }}/android/app/build/outputs/apk/release/*.apk | head -n1)
+          APK_SRC=$(find "${{ env.WORKING_DIR }}/android/app/build/outputs" -type f -path "*apk/*release*/*" -name "*.apk" -print -quit)
+          if [ -z "$APK_SRC" ]; then
+            echo "::error::No release APK found under android/app/build/outputs";
+            ls -R ${{ env.WORKING_DIR }}/android/app/build/outputs || true
+            exit 1
+          fi
           cp "$APK_SRC" "./subsonicnative-android-release-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.apk"
           if [ -f ${{ env.WORKING_DIR }}/android/app/build/outputs/mapping/release/mapping.txt ]; then \
             cp ${{ env.WORKING_DIR }}/android/app/build/outputs/mapping/release/mapping.txt "./mapping-v${{ steps.meta.outputs.version }}-c${{ steps.meta.outputs.code }}.txt"; \
