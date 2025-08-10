@@ -142,8 +142,11 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          STORE_FILE="$GITHUB_WORKSPACE/${{ env.WORKING_DIR }}/android/app/ci-upload-keystore.jks"
+          echo "Using keystore: $STORE_FILE"
+          ls -l "$STORE_FILE"
           ./gradlew --no-daemon --stacktrace assembleRelease \
-            -Pandroid.injected.signing.store.file=${{ env.WORKING_DIR }}/android/app/ci-upload-keystore.jks \
+            -Pandroid.injected.signing.store.file="$STORE_FILE" \
             -Pandroid.injected.signing.store.password=$ANDROID_KEYSTORE_PASSWORD \
             -Pandroid.injected.signing.key.alias=$ANDROID_KEY_ALIAS \
             -Pandroid.injected.signing.key.password=$ANDROID_KEY_PASSWORD
