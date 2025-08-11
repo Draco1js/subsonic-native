@@ -5,6 +5,8 @@ npm-debug.*
 *.jks
 *.p8
 *.p12
+*.old
+*.base64
 *.key
 *.mobileprovision
 *.orig.*
