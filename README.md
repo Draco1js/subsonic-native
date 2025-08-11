@@ -1,4 +1,4 @@
-# subsonic-native
+# Subsonic Native
 
 A modern, open source Subsonic client for React Native, designed to get a closer experience to streaming services such as Spotify...
 
