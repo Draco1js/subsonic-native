@@ -1,12 +1,20 @@
 import { Tabs } from "expo-router";
+import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { TabBarIcon } from "@/components/tabbar-icon";
+import { MiniPlayer } from "@/components/mini-player";
+import { PlayerSheet } from "@/components/player-sheet";
 import { useColorScheme } from "@/lib/use-color-scheme";
 
 export default function TabLayout() {
   const { isDarkColorScheme } = useColorScheme();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
 
   return (
-    <Tabs
+    <View style={{ flex: 1 }}>
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: isDarkColorScheme
@@ -24,7 +32,7 @@ export default function TabLayout() {
             : "hsl(214.3 31.8% 91.4%)",
         },
       }}
-    >
+      >
       {/* Primary tabs only: Home, Search, Library */}
       <Tabs.Screen
         name="index"
@@ -54,6 +62,9 @@ export default function TabLayout() {
       <Tabs.Screen name="playlist/[playlistId]" options={{ href: null }} />
       <Tabs.Screen name="song/[songId]" options={{ href: null }} />
       <Tabs.Screen name="playlists" options={{ href: null }} />
-    </Tabs>
+      </Tabs>
+      <MiniPlayer insetBottom={insets.bottom + tabBarHeight} />
+      <PlayerSheet insetBottom={insets.bottom + tabBarHeight} />
+    </View>
   );
 }

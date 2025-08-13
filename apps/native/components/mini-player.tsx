@@ -47,7 +47,7 @@ export function MiniPlayer({ insetBottom = 0 }: { insetBottom?: number }) {
           position: "absolute",
           left: 12,
           right: 12,
-          bottom: 16 + insetBottom + 56,
+          bottom: 16 + insetBottom,
           borderRadius: 10,
           overflow: "hidden",
         }}

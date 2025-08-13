@@ -16,7 +16,7 @@ import { fetchLyrics, parseSyncedLyrics, type SyncedLine } from "@/lib/lyrics";
 
 const SHEET_OFFSET = 64;
 
-export function PlayerSheet() {
+export function PlayerSheet({ insetBottom = 0 }: { insetBottom?: number }) {
   const { isOpen, close } = usePlayerUI();
   const {
     currentTrack,
@@ -179,12 +179,14 @@ export function PlayerSheet() {
     );
   }
 
+  const bottomOffset = insetBottom; // consumer decides whether to include tab bar height
+
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
         pointerEvents={isOpen ? "auto" : "none"}
         style={[
-          { position: "absolute", left: 0, right: 0, top: 0, bottom: 0 },
+          { position: "absolute", left: 0, right: 0, top: 0, bottom: bottomOffset },
           stylez,
         ]}
         className="bg-background"

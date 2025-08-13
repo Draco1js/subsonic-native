@@ -61,8 +61,7 @@ export default function RootLayout() {
                   />
                   <Stack.Screen name="modal" options={{ title: "Player" }} />
                 </Stack>
-                <MiniPlayer insetBottom={insets.bottom} />
-                <PlayerSheet />
+                {/* Overlays are mounted in the Tabs layout so they can read the real tab bar height */}
               </GestureHandlerRootView>
             </ThemeProvider>
           </PlayerUIProvider>
